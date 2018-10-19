@@ -1,0 +1,121 @@
+#!/usr/bin/env sh
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+# This is "Echo improved" server developed by SergeyL https://github.com/Serg167
+
+
+
+# Service implementation
+
+case "$1" in
+
+	install)
+		
+		if [ ! -e /etc/echom.conf ]
+			then
+				echo -e "# Basic echom service configuration\nIP_address=0.0.0.0\nPORT=5000\n" > /etc/echom.conf
+				echo -e "\n Installation is ongoing...Please stand by...aslo, please note that you need to have \"nc\" and \"nestat\" installed to get this service working"; sleep 1;
+				echo -e "\n Congratulations! Echo improved service has been installed successfully! Run \"echom start\" to start service\n"
+			else
+				echo -e "\n Echo improved service has been already installed recently...To check configuration refer to /etc/echom.conf\n"
+		fi
+		break
+
+	;;
+
+
+	start)	
+		
+		err=0
+		command -v nc >/dev/null 2>&1; [[ $(echo $?) -ne 0 ]] && echo -e "\n Service needs to have \"nc\" installed" && err=1
+		command -v netstat >/dev/null 2>&1; [[ $(echo $?) -ne 0 ]] && echo -e "\n Service needs to have \"netstat\" installed" && err=1
+		[[ $err -eq 1 ]] && echo -e "\n Quiting installation...\n" && exit
+
+		if [ ! -e /etc/echom.conf ]
+			then
+				echo -e "\n It appears that Echo improved service isn't installed. Run \"echom install\" to resolve this issue\n";
+				break
+			else
+				# starting service in background
+				source /etc/echom.conf
+				echom_pid=$(netstat -ptunl | grep :$PORT | grep nc | awk '{print $NF}' | cut -d/ -f1)
+				if [ ! -z $(echo $echom_pid) ]
+					then
+						echo -e "\n Echo improved service is already running, PID is $echom_pid\n"
+						break
+					else
+						echo -e "\n Starting service..."; sleep 1
+						nc -l -k -e /bin/cat $IP_address $PORT &
+						echo -e " Echo improved service has been started\n"
+				fi
+		fi
+		break
+
+        ;;
+
+	stop)
+
+		echom_pid=$(netstat -ptunl | grep :$PORT | grep nc | awk '{print $NF}' | cut -d/ -f1)
+		if [ ! -z $(echo $echom_pid) ]
+			then
+				pkill -P $(echo $echom_pid)
+				kill -9 $(echo $echom_pid)
+				echo -e "\n Echo improved service has been stopped\n"
+			else
+				echo -e "\n Echo improved service isn't running\n"
+				break
+		fi
+		break
+	;;
+
+	reload)
+
+                echom_pid=$(netstat -ptunl | grep :$PORT | grep nc | awk '{print $NF}' | cut -d/ -f1)
+                if [ ! -z $(echo $echom_pid) ]
+                        then
+                                pkill -P $(echo $echom_pid)
+                                kill -9 $(echo $echom_pid)
+				source /etc/echom.conf
+				nc -l -k -e /bin/cat $IP_address $PORT &
+                                echo -e "\n Echo improved service has been reloaded\n"
+                        else
+                                echo -e "\n Echo improved service isn't running\n"
+                                break
+                fi
+		break
+	;;
+
+	uninstall)
+			
+		if [ ! -e /etc/echom.conf ]
+			then
+				echo -e "\n It appears that Echo improved service isn't installed\n"
+				break
+			else
+                		echom_pid=$(netstat -ptunl | grep :$PORT | grep nc | awk '{print $NF}' | cut -d/ -f1)
+                		if [ ! -z $(echo $echom_pid) ]
+                        		then
+                                		pkill -P $(echo $echom_pid)
+                                		kill -9 $(echo $echom_pid)
+				fi
+				rm -f /etc/echom.conf
+                                echo -e "\n Echo improved service has been uninstalled\n"
+		fi		
+		break	
+	;;
+
+  	*)
+    		echo "Usage: echom {install | start | stop | reload | uninstall}"
+esac
